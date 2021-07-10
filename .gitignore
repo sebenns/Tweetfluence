@@ -1,0 +1,14 @@
+# Ignore node-modules
+/node_modules
+
+# Ignore all generated & collected data jsons
+/data/**/*.json
+/data/**/*.txt
+
+# Ignore configuration files
+config/*.cfg.json
+config/**.googleusercontent.com.json
+
+# Ignore JavaScript & Maps
+*.js
+*.map.js

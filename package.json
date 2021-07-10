@@ -1,0 +1,30 @@
+{
+  "name": "twittfluence",
+  "version": "1.0.0",
+  "description": "Project for crawling, categorizing and analyzing tweets by their sentiments.",
+  "repository": "https://github.com/sebenns/Tweetfluence",
+  "main": "start.js",
+  "scripts": {
+    "compile": "tsc -p ./",
+    "prestart": "npm run compile",
+    "postinstall": "npm run compile",
+    "start": "node ./src/start.js",
+    "crawl": "node ./src/start.js --crawl",
+    "analyze": "node ./src/start.js --analyze",
+    "import": "node ./src/start.js --neo4j",
+    "clean": "node ./src/start.js --clean",
+    "categorize": "node ./src/start.js --categories"
+  },
+  "author": "Sebastian Enns",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^16.0.2",
+    "@types/node-fetch": "^2.5.11",
+    "typescript": "^4.3.5"
+  },
+  "dependencies": {
+    "@google-cloud/language": "^4.2.6",
+    "neo4j-driver": "^4.3.1",
+    "node-fetch": "^2.6.1"
+  }
+}

@@ -4,6 +4,8 @@ import {ClassifiedTweet} from './ClassifiedTweet';
 
 export class ClassifiedTimeLine extends TimeLine
 {
+    public tweets: ClassifiedTweet[] = [];
+
     constructor(user: User, tweets: ClassifiedTweet[])
     {
         super(user, tweets);

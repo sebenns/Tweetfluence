@@ -11,4 +11,4 @@ config/**.googleusercontent.com.json
 
 # Ignore JavaScript & Maps
 *.js
-*.map.js
+*.js.map

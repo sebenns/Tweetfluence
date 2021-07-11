@@ -13,6 +13,7 @@
     "analyze": "node ./src/start.js --analyze",
     "import": "node ./src/start.js --neo4j",
     "clean": "node ./src/start.js --clean",
+    "docker": "docker-compose up --build",
     "categorize": "node ./src/start.js --categories"
   },
   "author": "Sebastian Enns",

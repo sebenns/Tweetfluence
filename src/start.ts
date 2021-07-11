@@ -5,7 +5,8 @@ import {TimeLine} from './crawler/TimeLine';
 import {TweetAnalyzer} from './analyzer/TweetAnalyzer';
 import {ClassifiedTimeLine} from './analyzer/ClassifiedTimeLine';
 import {AccountMap, Loader} from './utils/Loader';
-import {Neo4JConfig, Neo4JDriver} from './utils/Neo4JDriver';
+import {Neo4JConfig, Neo4JDriver} from './importer/Neo4JDriver';
+import {Importer} from './importer/Importer';
 
 console.log("[RUN] Starting Twittfluence Application. Locating necessary input artefacts and folder...");
 
@@ -56,15 +57,16 @@ const nodeArgs = {
                 const accountListPath = path.resolve(rawTweetsPath, accountList);
                 if (!fs.existsSync(accountListPath)) fs.mkdirSync(accountListPath);
                 tweetCrawler.storeTwitterData(accountListPath);
-
-                console.log(`[FINISHED] Crawler has finished crawling & storing twitter data.`);
+                console.log(`[CRAWLER] Stored raw twitter data for ${accountList}.`);
             }
             catch (e)
             {
-                console.error(`[ERR] Could not store twitter data, because: ${e}`);
+                console.error(`[ERR] Could not store twitter data, because: ${e.message}`);
                 process.exit(1);
             }
         }
+
+        console.log(`[FINISHED] Crawler has finished crawling & storing twitter data.`);
     }
 
     if (process.argv.includes(nodeArgs.sentiment) || process.argv.length === 2)
@@ -79,25 +81,24 @@ const nodeArgs = {
         }
         catch (e)
         {
-            console.error(`[ERR] Could not start Tweet Analyzer, because: ${e}`);
+            console.error(`[ERR] Could not start Tweet Analyzer, because: ${e.message}`);
             process.exit(1);
         }
 
         console.log(`[ANALYZER] Loading AccountLists...`);
         const accountMap: AccountMap = Loader.loadAccountLists(accountsPath);
-        const timeLines: TimeLine[] = [];
-
-        console.log(`[ANALYZER] Retrieving crawled TimeLines by account list.`);
 
         for (const accountList of Object.keys(accountMap))
         {
+            const timeLines: TimeLine[] = [];
+
             for (const account of accountMap[accountList])
             {
                 const accountListPath = path.resolve(rawTweetsPath, accountList);
                 const content: TimeLine = Loader.loadJSON(accountListPath, `${account}.json`);
                 timeLines.push(content as TimeLine);
 
-                console.log(`[+] Added timeLine for ${account}.`);
+                console.log(`[ANALYZER] Loaded TimeLine for ${account}.`);
             }
 
             try
@@ -110,14 +111,16 @@ const nodeArgs = {
                 if (!fs.existsSync(accountListPath)) fs.mkdirSync(accountListPath);
                 tweetAnalyzer.storeTimeLine(accountListPath, classifiedTimeLines);
 
-                console.log(`[FINISHED] Analyzer has finished analyzing & storing twitter data.`);
+                console.log(`[ANALYZER] Stored analyzed twitter data for ${accountList}.`);
             }
             catch (e)
             {
-                console.error(`[ERR] Could not analyze Tweet Data, because: ${e}`);
+                console.error(`[ERR] Could not analyze Tweet Data, because: ${e.message}`);
                 process.exit(1);
             }
         }
+
+        console.log(`[FINISHED] Analyzer has finished analyzing & storing twitter data.`);
     }
 
     if (process.argv.includes(nodeArgs.neo4j) || process.argv.length === 2)
@@ -129,16 +132,36 @@ const nodeArgs = {
 
         console.log(`[IMPORTER] Loading AccountLists...`);
         const accountMap: AccountMap = Loader.loadAccountLists(accountsPath);
-        const timeLines: ClassifiedTimeLine[] = [];
-
-        console.log(`[IMPORTER] Storing classified TimeLines in Neo4J Databases.`);
+        const importer: Importer = new Importer();
+        await importer.cleanDB();
 
         for (const accountList of Object.keys(accountMap))
         {
+            const timeLines: ClassifiedTimeLine[] = [];
+
             for (const account of accountMap[accountList])
             {
+                const accountListPath = path.resolve(tweetsPath, accountList);
+                const content: ClassifiedTimeLine = Loader.loadJSON(accountListPath, `${account}.json`);
+                timeLines.push(content as ClassifiedTimeLine);
 
+                console.log(`[IMPORTER] Loaded classified TimeLine for ${account}.`);
+            }
+
+            console.log(`[IMPORTER] Importing data for ${accountList} in Neo4J Database.`);
+
+            try
+            {
+                for (const timeLine of timeLines) await importer.importTimeLine(timeLine);
+            }
+            catch (e)
+            {
+                console.error(`[ERR] Could not analyze Tweet Data, because: ${e.message}`);
+                process.exit(1);
             }
         }
+
+        await importer.close();
+        console.log(`[FINISHED] All classified TimeLines had been imported to Neo4J Database.`);
     }
 })();

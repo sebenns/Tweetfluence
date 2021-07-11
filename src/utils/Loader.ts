@@ -27,9 +27,9 @@ export class Loader
 
                 const contents: string = fs.readFileSync(accountListPath).toString();
                 const accounts: string[] = contents.split(/[\r\n]+/).filter(s => s !== "");
-                accountMap[accountList] = accounts;
+                accountMap[accountList.split('.')[0]] = accounts;
 
-                console.log(`[LOADER] Found ${accounts.length} user(s) in ${accountsPath}.`);
+                console.log(`[LOADER] Found ${accounts.length} user(s) in ${accountList}.`);
             }
 
             return accountMap;
@@ -54,7 +54,7 @@ export class Loader
 
         try
         {
-            console.log(`[LOADER] Checking for JSON file ${JSONFileName}`);
+            console.log(`[LOADER] Checking for JSON file: ${JSONFileName}`);
 
             if (!fs.existsSync(JSONFilePath))
             {
@@ -63,7 +63,7 @@ export class Loader
                 throw Error(`JSON file not found, but created: ${JSONFilePath}`);
             }
 
-            console.log(`[LOADER] Found JSON file for ${JSONFileName}.`);
+            console.log(`[LOADER] Found JSON file: ${JSONFileName}.`);
             return JSON.parse(fs.readFileSync(JSONFilePath).toString());
         }
         catch (e)

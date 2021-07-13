@@ -4,6 +4,7 @@ import {User} from '../crawler/User';
 import {google} from '@google-cloud/language/build/protos/protos';
 import {Tweet} from '../crawler/Tweet';
 import {ClassifiedTweet} from '../analyzer/ClassifiedTweet';
+import {QueryResult} from 'neo4j-driver';
 import IEntity = google.cloud.language.v1beta2.IEntity;
 import IClassificationCategory = google.cloud.language.v1beta2.IClassificationCategory;
 
@@ -36,6 +37,17 @@ export class Importer
             await this.createCategories(categories, tweet);
             await this.createEntities(entities, tweet);
         }
+    }
+
+    /**
+     * Additional functions for cleanup and algorithms after importing data
+     * @returns {Promise<void>}
+     */
+    public async afterImport(): Promise<void>
+    {
+        await this.mergeCategories();
+        await this.createSentimentEdge();
+        await this.close();
     }
 
     /**
@@ -152,30 +164,111 @@ export class Importer
     {
         for (const category of categories)
         {
+            const topics: string[] = category.name.split('/').filter(t => t !== '');
+
             try
             {
-                await this.session.run(
-                    `MATCH (t: Tweet) WHERE t.id = $tweetId
-                    CREATE (c: Topic
-                    {
-                        name: $name,
-                        accuracy: $accuracy
-                    })<-[:HAS]-(t)`,
-                    {
-                        tweetId : tweet.id,
-                        name    : category.name,
-                        accuracy: category.confidence
-                    }
-                );
+                for (const topic of topics)
+                {
+                    await this.session.run(
+                        `MATCH (t: Tweet) WHERE t.id = $tweetId
+                        CREATE (c: Topic
+                        {
+                            name: $name,
+                            accuracy: $accuracy
+                        })<-[:HAS]-(t)`,
+                        {
+                            tweetId : tweet.id,
+                            name    : topic,
+                            accuracy: category.confidence
+                        }
+                    );
+                }
             }
             catch (e)
             {
                 console.error(`[ERR] Could not create category node, because ${e.message}`);
-                return;
+                continue;
             }
 
             console.log(`[(T)<-(C)] Category node ${category.name} has been created and added to ${tweet.id}.`);
         }
+    }
+
+    /**
+     * Merges duplicate categories in one, transfers edges to merged one
+     * @returns {Promise<void>}
+     */
+    private async mergeCategories(): Promise<void>
+    {
+        try
+        {
+            await this.session.run(
+                `MATCH (t: Topic)
+                WITH t.name AS name, COLLECT (t) AS list, COUNT(*) AS count
+                WHERE count > 1
+                CALL apoc.refactor.mergeNodes(list) YIELD node
+                RETURN node`
+            );
+        }
+        catch (e)
+        {
+            console.error(`[ERR] Could not merge categories, because ${e.message}`);
+            return;
+        }
+
+        console.log(`[IMPORTER] Categories have been successfully merged and edges moved.`);
+    }
+
+    /**
+     * Creates an additional sentiment edge connecting the user node to the topic and adding
+     * the amount of tweets which have included this topic and the average sentiment.
+     * @returns {Promise<void>}
+     */
+    private async createSentimentEdge(): Promise<void>
+    {
+        try
+        {
+            const result: QueryResult = await this.session.run(
+                `MATCH (c:Topic)-[r:HAS]-(tw:Tweet)-[t:TWEETED]-(u:User)
+               WITH c,u, AVG(t.sentiment) AS avgS, count(tw) AS tweets, 
+                  SUM(tw.likes) AS likes, SUM(tw.retweets) AS retweets, 
+                  SUM(tw.replies) AS replies, SUM(tw.quotes) AS quotes
+               RETURN u.id as userId, tweets, c.name as topic, avgS as sentiment, likes, retweets, replies, quotes`
+            );
+
+            for (const record of result.records)
+            {
+                await this.session.run(
+                    `MATCH (u: User), (c: Topic) WHERE u.id = $userId AND c.name = $topic
+                    CREATE (u)-[:TWEETS_ABOUT {
+                        tweets: $tweets, 
+                        sentiment: $sentiment,
+                        likes: $likes,
+                        retweets: $retweets,
+                        quotes: $quotes,
+                        replies: $replies,
+                    }]->(c)`,
+                    {
+                        userId   : record.get('userId'),
+                        topic    : record.get('topic'),
+                        tweets   : record.get('tweets'),
+                        sentiment: Number(record.get('sentiment').toFixed(3)),
+                        likes    : record.get('likes'),
+                        retweets : record.get('retweets'),
+                        replies  : record.get('replies'),
+                        quotes   : record.get('quotes')
+                    }
+                )
+            }
+        }
+        catch (e)
+        {
+            console.error(`[ERR] Could not create an additional sentiment edge, because ${e.message}`);
+            return;
+        }
+
+        console.log(`[IMPORTER] Edges connecting User and Topics have been created.`);
     }
 
     /**
@@ -198,9 +291,9 @@ export class Importer
                         type: $type
                     })<-[:CONTAINS]-(t)`,
                     {
-                        tweetId  : tweet.id,
-                        name     : entity.name,
-                        type     : entity.type
+                        tweetId: tweet.id,
+                        name   : entity.name,
+                        type   : entity.type
                     }
                 );
             }

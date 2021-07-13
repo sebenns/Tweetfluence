@@ -10,6 +10,7 @@ services:
       - 'neo_data:/data'
     environment:
       - NEO4J_AUTH=neo4j/password
+      - NEO4JLABS_PLUGINS=["apoc"]
 
 volumes:
   neo_data:

@@ -4,6 +4,7 @@
 # Ignore all generated & collected data jsons
 /data/**/*.json
 /data/**/*.txt
+/data/archive/*
 
 # Ignore configuration files
 config/*.cfg.json

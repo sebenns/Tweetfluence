@@ -41,11 +41,17 @@ export class TweetAnalyzer
                 classifyText            : true,
             };
 
-            const [result] = await this.client.annotateText({document, features});
+            try {
+                const [result] = await this.client.annotateText({document, features});
 
-            const classifiedTweet: ClassifiedTweet = new ClassifiedTweet(tweet);
-            classifiedTweet.setAnalyzedData(result);
-            classifiedTimeLine.add(classifiedTweet);
+                const classifiedTweet: ClassifiedTweet = new ClassifiedTweet(tweet);
+                classifiedTweet.setAnalyzedData(result);
+                classifiedTimeLine.add(classifiedTweet);
+            }
+            catch {
+                console.error(`[ERR] Could not analyze Tweet Data of ${tweet.id}.`);
+                continue;
+            }
 
             console.log(`[x] Tweet ${tweet.id} has been analyzed.`);
         }

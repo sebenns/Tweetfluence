@@ -31,11 +31,17 @@ const nodeArgs = {
     crawl    : '--crawl',
     sentiment: '--analyze',
     neo4j    : '--neo4j',
+    skip     : '--skip',
 };
+
+function isStartCmd(): boolean
+{
+    return process.argv.length === 2 || (process.argv.length === 3 && process.argv.includes(nodeArgs.skip))
+}
 
 (async () =>
 {
-    if (process.argv.includes(nodeArgs.crawl) || process.argv.length === 2)
+    if (process.argv.includes(nodeArgs.crawl) || isStartCmd())
     {
         console.log(`[CRAWLER] Loading Twitter configuration file, containing API information.`);
         let twitterCfg: TweetConfig = {apiKey: '', apiSecretKey: '', bearerToken: '', maxAmount: 0};
@@ -46,6 +52,14 @@ const nodeArgs = {
 
         for (const accountList of Object.keys(accountMap))
         {
+            const accountListPath = path.resolve(rawTweetsPath, accountList);
+
+            if (process.argv.includes(nodeArgs.skip))
+            {
+                console.log(`[CRAWLER] Skip Flag has been set, skipping already crawled accounts.`);
+                accountMap[accountList] = accountMap[accountList].filter(a => !fs.existsSync(path.resolve(accountListPath, `${a}.json`)));
+            }
+
             console.log(`[CRAWLER] Crawling TimeLines for ${accountList} AccountList.`);
             const tweetCrawler: TweetCrawler = new TweetCrawler(twitterCfg);
 
@@ -54,7 +68,6 @@ const nodeArgs = {
 
             try
             {
-                const accountListPath = path.resolve(rawTweetsPath, accountList);
                 if (!fs.existsSync(accountListPath)) fs.mkdirSync(accountListPath);
                 tweetCrawler.storeTwitterData(accountListPath);
                 console.log(`[CRAWLER] Stored raw twitter data for ${accountList}.`);
@@ -69,7 +82,7 @@ const nodeArgs = {
         console.log(`[FINISHED] Crawler has finished crawling & storing twitter data.`);
     }
 
-    if (process.argv.includes(nodeArgs.sentiment) || process.argv.length === 2)
+    if (process.argv.includes(nodeArgs.sentiment) || isStartCmd())
     {
         try
         {
@@ -90,6 +103,14 @@ const nodeArgs = {
 
         for (const accountList of Object.keys(accountMap))
         {
+            const accountListPath = path.resolve(tweetsPath, accountList);
+
+            if (process.argv.includes(nodeArgs.skip))
+            {
+                console.log(`[ANALYZER] Skip Flag has been set, skipping already crawled accounts.`);
+                accountMap[accountList] = accountMap[accountList].filter(a => !fs.existsSync(path.resolve(accountListPath, `${a}.json`)));
+            }
+
             const timeLines: TimeLine[] = [];
 
             for (const account of accountMap[accountList])
@@ -105,7 +126,6 @@ const nodeArgs = {
             {
                 const tweetAnalyzer: TweetAnalyzer = new TweetAnalyzer();
                 const classifiedTimeLines: ClassifiedTimeLine[] = [];
-                const accountListPath = path.resolve(tweetsPath, accountList);
 
                 for (const timeLine of timeLines) classifiedTimeLines.push(await tweetAnalyzer.analyzeTimeLine(timeLine));
                 if (!fs.existsSync(accountListPath)) fs.mkdirSync(accountListPath);
@@ -123,7 +143,7 @@ const nodeArgs = {
         console.log(`[FINISHED] Analyzer has finished analyzing & storing twitter data.`);
     }
 
-    if (process.argv.includes(nodeArgs.neo4j) || process.argv.length === 2)
+    if (process.argv.includes(nodeArgs.neo4j) || isStartCmd())
     {
         console.log(`[IMPORTER] Loading Neo4j configuration file, containing Database information.`);
         let neo4jCfg: Neo4JConfig = {url: 'neo4j://localhost', username: 'neo4j', password: 'password'};
@@ -161,7 +181,7 @@ const nodeArgs = {
             }
         }
 
-        await importer.close();
+        await importer.afterImport();
         console.log(`[FINISHED] All classified TimeLines had been imported to Neo4J Database.`);
     }
 })();

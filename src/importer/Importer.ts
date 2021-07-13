@@ -239,6 +239,14 @@ export class Importer
 
             for (const record of result.records)
             {
+                const likes: number = Number(record.get('likes'));
+                const retweets: number = Number(record.get('retweets'));
+                const replies: number = Number(record.get('replies'));
+                const quotes: number = Number(record.get('quotes'));
+                const tweets: number = Number(record.get('tweets'));
+                const reactionScore: number = Math.ceil((likes + replies) / tweets);
+                const viralScore: number = Math.ceil((retweets + quotes) / tweets);
+
                 await this.session.run(
                     `MATCH (u: User), (c: Topic) WHERE u.id = $userId AND c.name = $topic
                     CREATE (u)-[:TWEETS_ABOUT {
@@ -248,16 +256,15 @@ export class Importer
                         retweets: $retweets,
                         quotes: $quotes,
                         replies: $replies,
+                        viralScore: $viralScore,
+                        reactionScore: $reactionScore
                     }]->(c)`,
                     {
                         userId   : record.get('userId'),
                         topic    : record.get('topic'),
                         tweets   : record.get('tweets'),
                         sentiment: Number(record.get('sentiment').toFixed(3)),
-                        likes    : record.get('likes'),
-                        retweets : record.get('retweets'),
-                        replies  : record.get('replies'),
-                        quotes   : record.get('quotes')
+                        likes, retweets, replies, quotes, reactionScore, viralScore
                     }
                 )
             }

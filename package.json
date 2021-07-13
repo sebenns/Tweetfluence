@@ -15,6 +15,7 @@
     "analyze": "node ./src/start.js --analyze",
     "sanalyze": "node ./src/start.js --analyze --skip",
     "import": "node ./src/start.js --neo4j",
+    "simport": "node ./src/start.js --skip",
     "docker": "docker-compose up --build"
   },
   "author": "Sebastian Enns",

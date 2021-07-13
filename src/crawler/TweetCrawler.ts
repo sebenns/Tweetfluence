@@ -141,9 +141,10 @@ export class TweetCrawler
             'max_results' : maxResults.toString()
         });
 
-        try
+
+        for (let i = 0; i < maxLoops; i++)
         {
-            for (let i = 0; i < maxLoops; i++)
+            try
             {
                 const res = await fetch(`${endpointURL}?${params.toString()}`, options);
 
@@ -158,11 +159,10 @@ export class TweetCrawler
                 if (!meta.next_token) break;
                 params.set('pagination_token', meta.next_token);
             }
-        }
-        catch (e)
-        {
-            console.error(`[ERR] Cannot continue to fetch tweets, because: ${e}`);
-            return rawTweetData;
+            catch (e)
+            {
+                console.error(`[ERR] Cannot continue to fetch tweets, because: ${e}`);
+            }
         }
 
         return rawTweetData;

@@ -150,6 +150,13 @@ function isStartCmd(): boolean
         neo4jCfg = {...Loader.loadJSON(configPath, neo4jCfgFileName, neo4jCfg)};
         Neo4JDriver.createDatabaseConnection(neo4jCfg.url, neo4jCfg.username, neo4jCfg.password);
 
+        if (process.argv.includes(nodeArgs.skip))
+        {
+            await new Importer().afterImport();
+            console.log(`[FINISHED] All classified TimeLines had been imported to Neo4J Database.`);
+            return;
+        }
+
         console.log(`[IMPORTER] Loading AccountLists...`);
         const accountMap: AccountMap = Loader.loadAccountLists(accountsPath);
         const importer: Importer = new Importer();

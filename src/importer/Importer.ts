@@ -244,8 +244,7 @@ export class Importer
                 const replies: number = Number(record.get('replies'));
                 const quotes: number = Number(record.get('quotes'));
                 const tweets: number = Number(record.get('tweets'));
-                const reactionScore: number = Math.ceil((likes + replies) / tweets);
-                const viralScore: number = Math.ceil((retweets + quotes) / tweets);
+                const score: number = Math.ceil((retweets + replies) / tweets);
 
                 await this.session.run(
                     `MATCH (u: User), (c: Topic) WHERE u.id = $userId AND c.name = $topic
@@ -256,15 +255,13 @@ export class Importer
                         retweets: $retweets,
                         quotes: $quotes,
                         replies: $replies,
-                        viralScore: $viralScore,
-                        reactionScore: $reactionScore
+                        score: $score
                     }]->(c)`,
                     {
                         userId   : record.get('userId'),
                         topic    : record.get('topic'),
-                        tweets   : record.get('tweets'),
                         sentiment: Number(record.get('sentiment').toFixed(3)),
-                        likes, retweets, replies, quotes, reactionScore, viralScore
+                        likes, retweets, replies, quotes, tweets, score
                     }
                 )
             }
